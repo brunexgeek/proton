@@ -1,0 +1,3 @@
+[submodule "3rd-party/protop"]
+	path = 3rd-party/protop
+	url = https://github.com/brunexgeek/protop.git

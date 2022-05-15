@@ -1,0 +1,103 @@
+<html>
+<head>
+    <style>
+        table td:nth-child(1) { font-family: monospace; white-space: pre; padding-right: 2em; font-size: 123.1%; }
+    </style>
+</head>
+<body>
+
+<h1>Neutron Specification v1.0</h1>
+
+<p>Neutron is a binary serialization format to represent complex and nested entities. The top level entity is a document, an entity composed by zero or more key-value pairs.</p>
+<p>The format is designed so that data is encoded in a similar way as it is in memory for little-endian processors. Thus, minimal processing is required to encode and decode the data. This also enables the use of zero copying techniques.</p>
+<p>The following grammar specifies version 1.1 of the Neutron standard. The grammar is written using a pseudo-BNF syntax. Valid Neutron data is represented by the document non-terminal.</p>
+
+<h2>Basic Types</h2>
+
+<p>The following basic types are used as terminals in the rest of the grammar. Each type must be serialized in little-endian format.</p>
+
+<table>
+    <thead>
+        <tr><th>Type</th><th>Default</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>byte</td>   <td>0</td>  <td>1 byte (8-bits unsigned)</td></tr>
+        <tr><td>int16</td>  <td>0</td>   <td>2 bytes (32-bit signed integer, two's complement)</td></tr>
+        <tr><td>uint16</td> <td>0</td>    <td>2 bytes (32-bit unsigned integer)</td></tr>
+        <tr><td>int32</td>  <td>0</td>   <td>4 bytes (32-bit signed integer, two's complement)</td></tr>
+        <tr><td>uint32</td> <td>0</td>    <td>4 bytes (32-bit unsigned integer)</td></tr>
+        <tr><td>int64</td>  <td>0</td>   <td>8 bytes (64-bit signed integer, two's complement)</td></tr>
+        <tr><td>uint64</td> <td>&plusmn;0.0</td>    <td>8 bytes (64-bit unsigned integer)</td></tr>
+        <tr><td>double</td> <td>&plusmn;0.0</td>    <td>8 bytes (64-bit IEEE 754-2008 binary floating point)</td></tr>
+    </tbody>
+</table>
+
+<h2>Non-terminals</h2>
+
+<p>The following specifies the rest of the Neutron grammar. Quoted strings represent terminals, and should be interpreted with C semantics (e.g. "\x01" represents the byte 0000 0001). The * symbol is a shorthand for repetition (e.g. ("\x01"*2) means "\x01\x01"). When used as a suffix, * means that the repetition can occur 0 or more times.</p>
+
+<table>
+    <tbody>
+        <tr><td>document  ::=    size count16 uid (field*) "\x00"</td> <td>Document with <i>count16</i> fields (up to 2<sup>16</sup>). The entire document occupies <i>size</i> bytes (except the <i>size</i> itself). The <i>uid</i> is an unique identifier for the document layout.</td></tr>
+        <tr><td>size      ::=    uint32</td>                     <td>Size in bytes.</td></tr>
+        <tr><td>count16   ::=    uint16</td>                     <td>Number of entities (e.g elements, values).</td></tr>
+        <tr><td>count32   ::=    uint32</td>                     <td>Number of entities (e.g elements, values).</td></tr>
+        <tr><td>field     ::=</td>                               <td>Document field. A document cannot have multiple fields with the same identifier. Fields are serialized in the same order they are specified in the document layout.</td></tr>
+        <tr><td>            |    "\x01" uid document</td>        <td>Embedded document.</td></tr>
+        <tr><td>            |    "\x02" uid array</td>           <td>Single-type array.</td></tr>
+        <tr><td>            |    "\x03" uid binary</td>          <td>Binary data.</td></tr>
+        <tr><td>            |    "\x04" uid int64</td>           <td>UTC datetime as milliseconds since the Unix epoch.</td></tr>
+        <tr><td>            |    "\x05" uid float</td>          <td>IEEE 754 32-bit floating point.</td></tr>
+        <tr><td>            |    "\x06" uid double</td>          <td>IEEE 754 64-bit floating point.</td></tr>
+        <tr><td>            |    "\x07" uid string</td>          <td>UTF-8 string.</td></tr>
+        <tr><td>            |    "\x08" uid byte</td>            <td>Boolean (0 for false and 1 for true).</td></tr>
+        <tr><td>            |    "\x09" uid int16</td>           <td>16-bit integer.</td></tr>
+        <tr><td>            |    "\x0A" uid uint16</td>          <td>16-bit unsigned integer.</td></tr>
+        <tr><td>            |    "\x0B" uid int32</td>           <td>32-bit integer.</td></tr>
+        <tr><td>            |    "\x0C" uid uint32</td>          <td>32-bit unsigned integer.</td></tr>
+        <tr><td>            |    "\x0D" uid int64</td>           <td>64-bit integer.</td></tr>
+        <tr><td>            |    "\x0E" uid uint64</td>          <td>64-bit unsigned integer.</td></tr>
+        <tr><td>uid       ::=    uint16</td>                     <td>Unique field identifier.</td></tr>
+        <tr><td>string    ::=    size (byte*) "\x00"</td>               <td>UTF-8 string with <i>size</i> bytes (including the non-terminal "\x00"). The content of <i>(byte*)</i> is zero or more UTF-8 encoded characters.</td></tr>
+        <tr><td>array     ::=    size count32 entries</td>         <td>Single-type array with <i>count32</i> entries. The entire array occupies <i>size</i> bytes.</td></tr>
+        <tr><td>entries   ::=</td>                               <td>Array content. The non-terminal specify the element type and <i>count32</i> from <i>array</i> specify the number of entries.</td></tr>
+        <tr><td>            |    "\x01" (document*)</td>         <td>Embedded document.</td></tr>
+        <tr><td>            |    "\x02" (array*)</td>            <td>Single-type array.</td></tr>
+        <tr><td>            |    "\x03" (binary*)</td>           <td>Binary data.</td></tr>
+        <tr><td>            |    "\x04" (int64*)</td>            <td>UTC datetime as milliseconds since the Unix epoch.</td></tr>
+        <tr><td>            |    "\x05" (float*)</td>           <td>IEEE 754 32-bit floating point.</td></tr>
+        <tr><td>            |    "\x06" (double*)</td>           <td>IEEE 754 64-bit floating point.</td></tr>
+        <tr><td>            |    "\x07" (string*)</td>           <td>UTF-8 string.</td></tr>
+        <tr><td>            |    "\x08" (byte*)</td>             <td>Boolean (0 for false and 1 for true).</td></tr>
+        <tr><td>            |    "\x09" (int16*)</td>            <td>16-bit integer.</td></tr>
+        <tr><td>            |    "\x0A" (uint16*)</td>           <td>16-bit unsigned integer.</td></tr>
+        <tr><td>            |    "\x0B" (int32*)</td>            <td>32-bit integer.</td></tr>
+        <tr><td>            |    "\x0C" (uint32*)</td>           <td>32-bit unsigned integer.</td></tr>
+        <tr><td>            |    "\x0D" (int64*)</td>            <td>64-bit integer.</td></tr>
+        <tr><td>            |    "\x0E" (uint64*)</td>           <td>64-bit unsigned integer.</td></tr>
+        <tr><td>binary    ::=    size (byte*)</td>               <td>Generic binary data.</td></tr>
+    </tbody>
+</table>
+
+<h2>Optimization</h2>
+<p>Fields of <a href="#basic_types">basic types</a> containing the default value <i>might</i> be ignored during serialization to reduce the output size. Fields of other data types <i>might</i> also be ignored if they meet the conditions in the following table.</p>
+
+<table>
+    <thead>
+        <tr><th>Field type</th><th>Condition to ignore field</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>document</td>     <td>Document has no fields or all of its fields were ignored.</td></tr>
+        <tr><td>array</td>     <td>Number of elements in the array is zero.</td></tr>
+        <tr><td>binary</td>     <td>Binary data is empty (i.e. size is zero).</td></tr>
+    </tbody>
+</table>
+
+<p>Notice that a field with type <i>document</i> might be ignored but the root document is always present, even if all of its fields were ignored.</p>
+
+<h2>Examples</h2>
+
+
+
+</body>
+</html>
