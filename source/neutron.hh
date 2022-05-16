@@ -6,208 +6,457 @@
 #include <string>
 #include <list>
 #include <cstring>
-#include <type_traits>
 
 namespace proton {
 namespace neutron {
 
-struct Stream
-{
-    virtual void write( const uint8_t *buffer, size_t size ) = 0;
-    virtual void write( const char *buffer, size_t size ) = 0;
-    virtual void write_int8( int8_t value ) = 0;
-    virtual void write_uint8( uint8_t value ) = 0;
-    virtual void write_int16( int16_t value ) = 0;
-    virtual void write_uint16( uint16_t value ) = 0;
-    virtual void write_int32( int32_t value ) = 0;
-    virtual void write_uint32( uint32_t value ) = 0;
-    virtual void write_int64( int64_t value ) = 0;
-    virtual void write_uint64( uint64_t value ) = 0;
-    virtual void write_float( float value ) = 0;
-    virtual void write_double( double value ) = 0;
-    virtual void grow( size_t size ) = 0;
-    virtual size_t size() const = 0;
-    virtual size_t offset() const = 0;
-    virtual const uint8_t *data() const = 0;
-};
-
-class MemoryStream : public Stream
+class MemoryStream
 {
     public:
-        MemoryStream( size_t size );
-        inline void write( const uint8_t *buffer, size_t size ) override;
-        inline void write( const char *buffer, size_t size ) override
+        uint8_t *data_;
+        size_t size_, off_;
+
+        MemoryStream( size_t size ) : off_(0)
+        {
+            size_ = size & 0xFFFFFFFF;
+            data_ = (uint8_t*) malloc(size_); // TODO: error handling
+        }
+
+        inline void write( const uint8_t *buffer, size_t size )
+        {
+            if (off_ + size > size_) grow(size);
+            memcpy(data_ + off_, buffer, size); // TODO: error handling
+            off_ += size;
+        }
+
+        inline void write( const char *buffer, size_t size )
         {
             write((const uint8_t*) buffer, size);
         }
-        void grow( size_t size ) override;
-        inline size_t size() const override
+
+        void grow( size_t size )
+        {
+            size = (size + 3) & (~3);
+            size_ += size + (size & 0x3FF);
+            data_ = (uint8_t*) realloc(data_, size_);
+        }
+
+        inline size_t size() const
         {
             return size_;
         }
-        inline size_t offset() const override
+
+        inline size_t offset() const
         {
             return off_;
         }
-        inline void write_int8( int8_t value ) override
+
+        inline void write_int8( int8_t value )
         {
             write((uint8_t*) &value, sizeof(value));
         }
-        inline void write_uint8( uint8_t value ) override
+
+        inline void write_uint8( uint8_t value )
         {
             write((uint8_t*) &value, sizeof(value));
         }
-        inline void write_int16( int16_t value ) override
+
+        inline void write_int16( int16_t value )
         {
             write((uint8_t*) &value, sizeof(value));
         }
-        inline void write_uint16( uint16_t value ) override
+
+        inline void write_uint16( uint16_t value )
         {
             write((uint8_t*) &value, sizeof(value));
         }
-        inline void write_int32( int32_t value ) override
+
+        inline void write_int32( int32_t value )
         {
             write((uint8_t*) &value, sizeof(value));
         }
-        inline void write_uint32( uint32_t value ) override
+
+        inline void write_uint32( uint32_t value )
         {
             write((uint8_t*) &value, sizeof(value));
         }
-        inline void write_int64( int64_t value ) override
+
+        inline void write_int64( int64_t value )
         {
             write((uint8_t*) &value, sizeof(value));
         }
-        inline void write_uint64( uint64_t value ) override
+
+        inline void write_uint64( uint64_t value )
         {
             write((uint8_t*) &value, sizeof(value));
         }
-        inline void write_float( float value ) override
+
+        inline void write_float( float value )
         {
             write((uint8_t*) &value, sizeof(value));
         }
-        inline void write_double( double value ) override
+
+        inline void write_double( double value )
         {
             write((uint8_t*) &value, sizeof(value));
         }
-        inline const uint8_t *data() const override
+
+        inline void padding( size_t count )
+        {
+            while (count--) write_uint8(0);
+        }
+
+        inline const uint8_t *data() const
         {
             return data_;
         }
-
-    protected:
-        uint8_t *data_;
-        size_t size_, off_;
 };
 
 class Serializer
 {
     public:
         Serializer( MemoryStream &stream ) : out_(stream) {}
-        inline void begin_document( uint16_t id )
+
+        // single = document field with a single value
+        // array  = document field with array of values
+        // value  = standalone value for arrays
+
+        inline void begin_root_document( uint16_t id )
         {
-            offs_.push_back(out_.offset());
-            out_.write_uint32(0U);
-            out_.write_uint16((uint16_t)0);
-            out_.write_uint16(id);
+            begin_document_value(id);
         }
 
-        inline void end_document()
+        inline void end_root_document()
         {
-            out_.write_uint8((uint8_t)'\x00');
-            auto off = offs_.back();
-            offs_.pop_back();
+            end_document_value();
+        }
+
+        inline void begin_document_value( uint16_t id )
+        {
+            dstack_.push_back({(uint32_t)out_.offset(),0});
+            out_.write_uint32(0U); // size
+            out_.write_uint16((uint16_t)0); // count16
+            out_.write_uint16(id); // uid
+        }
+
+        inline void end_document_value()
+        {
+            auto item = dstack_.back();
+            dstack_.pop_back();
+            auto *psize = (uint32_t*)(out_.data_ + item.offset);
+            auto *pcount = (uint16_t*)(out_.data_ + item.offset + sizeof(uint32_t));
+            *psize = (uint32_t) (out_.offset() - item.offset - sizeof(uint32_t));
+            *pcount = (uint16_t) item.counter;
             // TODO: update 'size' and 'count16'
         }
 
-        inline void field_float( uint16_t id, float value )
+        inline void begin_document_single( uint16_t fid, uint16_t did )
         {
-            out_.write_uint8('\x05');
-            out_.write_uint16(id);
+            dstack_.back().counter++;
+            out_.write_uint8('\x01'); // type
+            out_.write_uint8(0); // pad
+            out_.write_uint16(fid); // uid
+            begin_document_value(did); // should call 'end_document' to finish
+        }
+
+        inline void end_document_single()
+        {
+            end_document_value();
+        }
+
+        inline void binary_single( uint16_t id, const uint8_t *value, size_t size )
+        {
+            dstack_.back().counter++;
+            out_.write_uint8('\x02'); // type
+            out_.write_uint8(0); // pad
+            out_.write_uint16(id); // uid
+            binary_value(value, size);
+        }
+
+        inline void datetime_single( uint16_t id, uint64_t value )
+        {
+            dstack_.back().counter++;
+            out_.write_uint8('\x03'); // type
+            out_.write_uint8(0); // pad
+            out_.write_uint16(id); // uid
+            out_.write((uint8_t*)&value, sizeof(value));
+        }
+
+        inline void float_single( uint16_t id, float value )
+        {
+            dstack_.back().counter++;
+            out_.write_uint8('\x04'); // type
+            out_.write_uint8(0); // pad
+            out_.write_uint16(id); // uid
             out_.write_float(value);
         }
 
-        inline void field_double( uint16_t id, double value )
+        inline void double_single( uint16_t id, double value )
         {
-            out_.write_uint8('\x05');
-            out_.write_uint16(id);
+            dstack_.back().counter++;
+            out_.write_uint8('\x05'); // type
+            out_.write_uint8(0); // pad
+            out_.write_uint16(id); // uid
             out_.write_double(value);
         }
 
-        inline void field_string( uint16_t id, const std::string &value )
+        inline void string_single( uint16_t id, const std::string &value )
         {
-            out_.write_uint8('\x09');
-            out_.write_uint16(id);
-            out_.write_int32((uint32_t) value.size() + 1); // TODO: check size
+            dstack_.back().counter++;
+            out_.write_uint8('\x06'); // type
+            out_.write_uint8(0); // pad
+            out_.write_uint16(id); // uid
+            string_value(value);
+        }
+
+        inline void bool_single( uint16_t id, bool value )
+        {
+            dstack_.back().counter++;
+            out_.write_uint8('\x07'); // type
+            out_.write_uint8(value ? 1 : 0); // value
+            out_.write_uint16(id); // uid
+        }
+
+        inline void int32_single( uint16_t id, int32_t value )
+        {
+            dstack_.back().counter++;
+            if (value >= INT8_MIN && value <= INT8_MAX)
+            {
+                out_.write_uint8('\x48'); // type
+                out_.write_uint8((int8_t) value); // value
+                out_.write_uint16(id); // uid
+            }
+            else
+            {
+                out_.write_uint8('\x08'); // type
+                out_.write_uint8(0); // pad
+                out_.write_uint16(id); // uid
+                out_.write((uint8_t*)&value, sizeof(value));
+            }
+        }
+
+        inline void uint32_single( uint16_t id, uint32_t value )
+        {
+            dstack_.back().counter++;
+            if (value <= UINT8_MAX)
+            {
+                out_.write_uint8('\x49'); // type
+                out_.write_uint8((uint8_t) value); // value
+                out_.write_uint16(id); // uid
+            }
+            else
+            {
+                out_.write_uint8('\x09'); // type
+                out_.write_uint8(0); // pad
+                out_.write_uint16(id); // uid
+                out_.write((uint8_t*)&value, sizeof(value));
+            }
+        }
+
+        inline void int64_single( uint16_t id, int64_t value )
+        {
+            dstack_.back().counter++;
+            if (value >= INT8_MIN && value <= INT8_MAX)
+            {
+                out_.write_uint8('\x4A'); // type
+                out_.write_uint8((int8_t) value); // value
+                out_.write_uint16(id); // uid
+            }
+            else
+            {
+                out_.write_uint8('\x0A'); // type
+                out_.write_uint8(0); // pad
+                out_.write_uint16(id); // uid
+                out_.write((uint8_t*)&value, sizeof(value));
+            }
+        }
+
+        inline void uint64_single( uint16_t id, int64_t value )
+        {
+            dstack_.back().counter++;
+            if (value <= UINT8_MAX)
+            {
+                out_.write_uint8('\x4B'); // type
+                out_.write_uint8((uint8_t) value); // value
+                out_.write_uint16(id); // uid
+            }
+            else
+            {
+                out_.write_uint8('\x0B'); // type
+                out_.write_uint8(0); // pad
+                out_.write_uint16(id); // uid
+                out_.write((uint8_t*)&value, sizeof(value));
+            }
+        }
+
+        inline void begin_document_array( uint16_t id )
+        {
+            begin_array('\x81', id);
+        }
+
+        inline void end_document_array()
+        {
+            end_array();
+        }
+
+        inline void begin_binary_array( uint16_t id, const std::list<std::string> &value )
+        {
+            begin_array('\x82', id);
+        }
+
+        inline void end_binary_array()
+        {
+            end_array();
+        }
+
+        inline void datetime_array( uint16_t id, const uint64_t *value, size_t count )
+        {
+            dstack_.back().counter++;
+            out_.write_uint8('\x83'); // type
+            out_.write_uint8(0); // pad
+            out_.write_uint16(id); // uid
+            out_.write_uint32((uint32_t) (count * sizeof(uint64_t))); // size
+            out_.write_uint32((uint32_t) count); // count
+            out_.write((uint8_t*)value, sizeof(uint64_t) * count);
+        }
+
+        inline void float_array( uint16_t id, const float *value, size_t count )
+        {
+            dstack_.back().counter++;
+            out_.write_uint8('\x84'); // type
+            out_.write_uint8(0); // pad
+            out_.write_uint16(id); // uid
+            out_.write_uint32((uint32_t) (count * sizeof(float))); // size
+            out_.write_uint32((uint32_t) count); // count
+            out_.write((uint8_t*)value, sizeof(float) * count);
+        }
+
+        inline void double_array( uint16_t id, const double *value, size_t count )
+        {
+            dstack_.back().counter++;
+            out_.write_uint8('\x85'); // type
+            out_.write_uint8(0); // pad
+            out_.write_uint16(id); // uid
+            out_.write_uint32((uint32_t) (count * sizeof(double))); // size
+            out_.write_uint32((uint32_t) count); // count
+            out_.write((uint8_t*)value, sizeof(double) * count);
+        }
+
+        inline void begin_string_array( uint16_t id )
+        {
+            begin_array('\x86', id);
+        }
+
+        inline void end_string_array()
+        {
+            end_array();
+        }
+
+        inline void bool_array( uint16_t id, const bool *value, size_t count )
+        {
+            dstack_.back().counter++;
+            out_.write_uint8('\x87'); // type
+            out_.write_uint8(0); // pad
+            out_.write_uint16(id); // uid
+            auto size = (uint32_t)(count * sizeof(uint8_t) + 3) & (~3);
+            out_.write_uint32(size); // size
+            out_.write_uint32((uint32_t) count); // count
+            if (sizeof(bool) == sizeof(uint8_t))
+                out_.write((const uint8_t*)value, sizeof(uint8_t) * count);
+            else
+                for (size_t i = 0; i < count; ++i)
+                    out_.write_uint8((uint8_t) value[i] ? 1 : 0);
+            out_.padding(size - count);
+        }
+
+        inline void int32_array( uint16_t id, const int32_t *value, size_t count )
+        {
+            dstack_.back().counter++;
+            out_.write_uint8('\x88'); // type
+            out_.write_uint8(0); // pad
+            out_.write_uint16(id); // uid
+            out_.write_uint32((uint32_t) (count * sizeof(int32_t))); // size
+            out_.write_uint32((uint32_t) count); // count
+            out_.write((uint8_t*)&value, sizeof(int32_t));
+        }
+
+        inline void uint32_array( uint16_t id, const uint32_t *value, size_t count )
+        {
+            dstack_.back().counter++;
+            out_.write_uint8('\x89'); // type
+            out_.write_uint8(0); // pad
+            out_.write_uint16(id); // uid
+            out_.write_uint32((uint32_t) (count * sizeof(uint32_t))); // size
+            out_.write_uint32((uint32_t) count); // count
+            out_.write((uint8_t*)&value, sizeof(uint32_t));
+        }
+
+        inline void int64_array( uint16_t id, const int64_t *value, size_t count )
+        {
+            dstack_.back().counter++;
+            out_.write_uint8('\x8A'); // type
+            out_.write_uint8(0); // pad
+            out_.write_uint16(id); // uid
+            out_.write((uint8_t*)&value, sizeof(value));
+            out_.write_uint32((uint32_t) (count * sizeof(int64_t))); // size
+            out_.write_uint32((uint32_t) count); // count
+            out_.write((uint8_t*)&value, sizeof(int64_t));
+        }
+
+        inline void uint64_array( uint16_t id, const int64_t *value, size_t count )
+        {
+            dstack_.back().counter++;
+            out_.write_uint8('\x8B'); // type
+            out_.write_uint8(0); // pad
+            out_.write_uint16(id); // uid
+            out_.write_uint32((uint32_t) (count * sizeof(int64_t))); // size
+            out_.write_uint32((uint32_t) count); // count
+            out_.write((uint8_t*)&value, sizeof(int64_t));
+        }
+
+        inline void binary_value( const uint8_t *value, size_t size )
+        {
+            out_.write(value, size);
+            out_.padding(((size + 3) & (~3)) - size);
+        }
+
+        inline void string_value( const std::string &value )
+        {
+            auto size = (uint32_t) ((value.length() + 1 + 3) & (~3)); // TODO: check size
+            out_.write_int32(size);
             out_.write(value.c_str(), value.length());
-            out_.write_uint8('\x00');
+            out_.padding(size - (uint32_t) value.length());
         }
-
-        inline void field_bool( uint16_t id, bool value )
-        {
-            out_.write_uint8('\x08');
-            out_.write_uint16(id);
-            out_.write_uint8(value ? 1 : 0);
-        }
-
-        inline void field_int16( uint16_t id, int16_t value )
-        {
-            out_.write_uint8('\x09');
-            out_.write_uint16(id);
-            out_.write((uint8_t*)&value, sizeof(value));
-        }
-
-        inline void field_uint16( uint16_t id, uint16_t value )
-        {
-            out_.write_uint8('\x0A');
-            out_.write_uint16(id);
-            out_.write((uint8_t*)&value, sizeof(value));
-        }
-
-        inline void field_int32( uint16_t id, int32_t value )
-        {
-            out_.write_uint8('\x0B');
-            out_.write_uint16(id);
-            out_.write((uint8_t*)&value, sizeof(value));
-        }
-
-        inline void field_uint32( uint16_t id, uint32_t value )
-        {
-            out_.write_uint8('\x0C');
-            out_.write_uint16(id);
-            out_.write((uint8_t*)&value, sizeof(value));
-        }
-
-        inline void field_int64( uint16_t id, int64_t value )
-        {
-            out_.write_uint8('\x0D');
-            out_.write_uint16(id);
-            out_.write((uint8_t*)&value, sizeof(value));
-        }
-
-        inline void field_uint64( uint16_t id, int64_t value )
-        {
-            out_.write_uint8('\x0E');
-            out_.write_uint16(id);
-            out_.write((uint8_t*)&value, sizeof(value));
-        }
-
-        inline void field_begin_document( uint16_t id, int64_t value )
-        {
-            out_.write_uint8('\x01');
-            out_.write_uint16(id);
-            out_.write((uint8_t*)&value, sizeof(value));
-        }
-
-        inline void field_end_document( uint16_t id, int64_t value )
-        {
-            out_.write_uint8('\x0E');
-            out_.write((uint8_t*)&value, sizeof(value));
-        }
-
 
     protected:
+        struct item_t
+        {
+            uint32_t offset = 0;
+            uint32_t counter = 0;
+        };
         MemoryStream &out_;
-        std::list<uint32_t> offs_;
+        std::list<item_t> dstack_;
+        std::list<item_t> astack_;
+
+        inline void begin_array( uint8_t type, uint16_t id )
+        {
+            dstack_.back().counter++;
+            out_.write_uint8(type); // type
+            out_.write_uint8(0); // pad
+            out_.write_uint16(id); // uid
+            astack_.push_back({(uint32_t) out_.offset(), 0});
+            out_.write_uint32(0); // size
+            out_.write_uint32(0); // count
+        }
+
+        inline void end_array()
+        {
+            auto item = astack_.back();
+            astack_.pop_back();
+            auto *ptr = (uint32_t*)(out_.data_ + item.offset);
+            *ptr = (uint32_t) (out_.offset() - item.offset - sizeof(uint32_t));
+            *(ptr + sizeof(uint32_t)) = item.counter;
+        }
 };
 
 

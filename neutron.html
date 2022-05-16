@@ -1,7 +1,11 @@
 <html>
 <head>
     <style>
-        table td:nth-child(1) { font-family: monospace; white-space: pre; padding-right: 2em; font-size: 123.1%; }
+        .abnf td:nth-child(1), .example td { font-family: monospace; white-space: pre; padding-right: 2em; font-size: 123.1%; }
+        span.red { color: red; }
+        span.blue { color: blue; }
+        span.purple { color: purple; }
+        span.green { color: green; }
     </style>
 </head>
 <body>
@@ -16,7 +20,7 @@
 
 <p>The following basic types are used as terminals in the rest of the grammar. Each type must be serialized in little-endian format.</p>
 
-<table>
+<table class='abnf'>
     <thead>
         <tr><th>Type</th><th>Default</th><th>Description</th></tr>
     </thead>
@@ -35,46 +39,47 @@
 
 <p>The following specifies the rest of the Neutron grammar. Quoted strings represent terminals, and should be interpreted with C semantics (e.g. "\x01" represents the byte 0000 0001). The * symbol is a shorthand for repetition (e.g. ("\x01"*2) means "\x01\x01"). When used as a suffix, * means that the repetition can occur 0 or more times.</p>
 
-<table>
+<table class='abnf'>
     <tbody>
-        <tr><td>document  ::=    size count16 uid (field*)</td> <td>Document with <i>count16</i> fields (up to 2<sup>16</sup>). The entire document occupies <i>size</i> bytes (except the <i>size</i> itself). The <i>uid</i> is an unique identifier for the document layout.</td></tr>
-        <tr><td>size      ::=    uint32</td>                     <td>Size in bytes.</td></tr>
-        <tr><td>count16   ::=    uint16</td>                     <td>Number of entities (e.g elements, values).</td></tr>
-        <tr><td>count32   ::=    uint32</td>                     <td>Number of entities (e.g elements, values).</td></tr>
-        <tr><td>field     ::=</td>                               <td>Document field. A document cannot have multiple fields with the same identifier. Fields are serialized in the same order they are specified in the document layout.</td></tr>
-        <tr><td>            |    "\x01" pad uid document</td>    <td>Embedded document.</td></tr>
-        <tr><td>            |    arrtyp pad uid array</td>       <td>Single-type array.</td></tr>
-        <tr><td>            |    "\x03" pad uid binary</td>      <td>Binary data.</td></tr>
-        <tr><td>            |    "\x04" pad uid int64</td>       <td>UTC datetime as milliseconds since the Unix epoch.</td></tr>
-        <tr><td>            |    "\x05" pad uid float</td>       <td>IEEE 754 32-bit floating point.</td></tr>
-        <tr><td>            |    "\x06" pad uid double</td>      <td>IEEE 754 64-bit floating point.</td></tr>
-        <tr><td>            |    "\x07" pad uid string</td>      <td>UTF-8 string.</td></tr>
-        <tr><td>            |    "\x08" uint8 uid</td>           <td>Boolean. The <i>uint8</i> is set with 0 for false and 1 for true.</td></tr>
-        <tr><td>            |    "\x0B" pad uid int32</td>       <td>32-bit integer.</td></tr>
-        <tr><td>            |    "\x0C" pad uid uint32</td>      <td>32-bit unsigned integer.</td></tr>
-        <tr><td>            |    "\x0D" pad uid int64</td>       <td>64-bit integer.</td></tr>
-        <tr><td>            |    "\x0E" pad uid uint64</td>      <td>64-bit unsigned integer.</td></tr>
-        <tr><td>            |    "\x4B" int8  uid</td>           <td>32-bit integer with small value (stored in <i>int8</i>).</td></tr>
-        <tr><td>            |    "\x4C" uint8 uid</td>           <td>32-bit unsigned integer with small value (stored in <i>uint8</i>).</td></tr>
-        <tr><td>            |    "\x4D" int8  uid</td>           <td>64-bit integer with small value (stored in <i>int8</i>).</td></tr>
-        <tr><td>            |    "\x4E" uint8 uid</td>           <td>64-bit unsigned integer with small value (stored in <i>uint8</i>).</td></tr>
-        <tr><td>pad       ::=    uint8</td>                      <td>Padding.</td></tr>
-        <tr><td>uid       ::=    uint16</td>                     <td>Unique field identifier.</td></tr>
-        <tr><td>string    ::=    size (uint8*)</td>              <td>UTF-8 string with <i>size</i> bytes. The <i>(uint8*)</i> is zero or more UTF-8 encoded characters, padded with zeros to align to 4 bytes.</td></tr>
-        <tr><td>array     ::=    size count32 (uint8*)</td>      <td>Single-type array with <i>count32</i> entries. The entire array occupies <i>size</i> bytes. The <i>(uint8*)</i> is the array content, padded with zeros to align to 4 bytes. The padding is considered in <i>size</i> but not in <i>count32</i>.</td></tr>
-        <tr><td>arrtyp    ::=</td>                               <td>Array type. These are the same terminals used for document field types, but with the most significant bit set.</td></tr>
-        <tr><td>            |    "\x81"</td>                     <td>Embedded document.</td></tr>
-        <tr><td>            |    "\x83"</td>                     <td>Binary data.</td></tr>
-        <tr><td>            |    "\x84"</td>                     <td>UTC datetime as milliseconds since the Unix epoch.</td></tr>
-        <tr><td>            |    "\x85"</td>                     <td>IEEE 754 32-bit floating point.</td></tr>
-        <tr><td>            |    "\x86"</td>                     <td>IEEE 754 64-bit floating point.</td></tr>
-        <tr><td>            |    "\x87"</td>                     <td>UTF-8 string.</td></tr>
-        <tr><td>            |    "\x88"</td>                     <td>Boolean (0 for false and 1 for true).</td></tr>
-        <tr><td>            |    "\x8B"</td>                     <td>32-bit integer.</td></tr>
-        <tr><td>            |    "\x8C"</td>                     <td>32-bit unsigned integer.</td></tr>
-        <tr><td>            |    "\x8D"</td>                     <td>64-bit integer.</td></tr>
-        <tr><td>            |    "\x8E"</td>                     <td>64-bit unsigned integer.</td></tr>
-        <tr><td>binary    ::=    size (byte*)</td>               <td>Generic binary data.</td></tr>
+        <tr><td>document     ::=    size count16 uid (field*)</td> <td>Document with <i>count16</i> fields (up to 2<sup>16</sup>). The entire document occupies <i>size</i> bytes (except the <i>size</i> itself). The <i>uid</i> is an unique identifier for the document layout.</td></tr>
+        <tr><td>size         ::=    uint32</td>                     <td>Size in bytes. The maximum value is 2<sup>32</sup></td></tr>
+        <tr><td>count16      ::=    uint16</td>                     <td>Number of entities (e.g elements, values). The maximum value is 2<sup>16</sup></td></tr>
+        <tr><td>count32      ::=    uint32</td>                     <td>Number of entities (e.g elements, values). The maximum value is 2<sup>32</sup></td></tr>
+        <tr><td>field        ::=</td>                               <td>Document field. A document cannot have multiple fields with the same identifier. Fields are serialized in the same order they are specified in the document layout.</td></tr>
+        <tr><td>               |    simple_field</td>               <td></td></tr>
+        <tr><td>               |    array_field</td>                <td></td></tr>
+        <tr><td>simple_field ::=</td>    <td>Fields with a single value.</td></tr>
+        <tr><td>               |    "\x01" pad uid document</td>    <td>Document.</td></tr>
+        <tr><td>               |    "\x02" pad uid binary</td>      <td>Binary data.</td></tr>
+        <tr><td>               |    "\x03" pad uid int64</td>       <td>UTC datetime (milliseconds since the Unix epoch).</td></tr>
+        <tr><td>               |    "\x04" pad uid float</td>       <td>IEEE 754 32-bit floating point.</td></tr>
+        <tr><td>               |    "\x05" pad uid double</td>      <td>IEEE 754 64-bit floating point.</td></tr>
+        <tr><td>               |    "\x06" pad uid string</td>      <td>UTF-8 string.</td></tr>
+        <tr><td>               |    "\x07" uint8 uid</td>           <td>Boolean. The <i>uint8</i> must be set to 0 for false and 1 for true.</td></tr>
+        <tr><td>               |    "\x08" pad uid int32</td>       <td>32-bit integer.</td></tr>
+        <tr><td>               |    "\x09" pad uid uint32</td>      <td>32-bit unsigned integer.</td></tr>
+        <tr><td>               |    "\x0A" pad uid int64</td>       <td>64-bit integer.</td></tr>
+        <tr><td>               |    "\x0B" pad uid uint64</td>      <td>64-bit unsigned integer.</td></tr>
+        <tr><td>               |    "\x48" int8  uid</td>           <td>32-bit integer encoding for small values (stored in <i>int8</i>).</td></tr>
+        <tr><td>               |    "\x49" uint8 uid</td>           <td>32-bit unsigned encoding integer for small values (stored in <i>uint8</i>).</td></tr>
+        <tr><td>               |    "\x4A" int8  uid</td>           <td>64-bit integer encoding for small values (stored in <i>int8</i>).</td></tr>
+        <tr><td>               |    "\x4B" uint8 uid</td>           <td>64-bit unsigned encoding integer for small values (stored in <i>uint8</i>).</td></tr>
+        <tr><td> array_field ::=</td>       <td>Fields for array of values. The array content (i.e. the repeated non-terminal) has <i>count32</i> elements (up to 2<sup>32</sup>) and occupies <i>size</i> bytes.</td></tr>
+        <tr><td>               |    "\x81" pad uid count32 size document*</td>       <td>Array of documents.</td></tr>
+        <tr><td>               |    "\x82" pad uid count32 size binary*</td>       <td>Array of binary data.</td></tr>
+        <tr><td>               |    "\x83" pad uid count32 size uint64*</td>       <td>Array of UTC datetime (milliseconds since the Unix epoch).</td></tr>
+        <tr><td>               |    "\x84" pad uid count32 size float*</td>       <td>Array of IEEE 754 32-bit floating points.</td></tr>
+        <tr><td>               |    "\x85" pad uid count32 size double*</td>       <td>Array of IEEE 754 64-bit floating points.</td></tr>
+        <tr><td>               |    "\x86" pad uid count32 size string*</td>       <td>Array of UTF-8 strings.</td></tr>
+        <tr><td>               |    "\x87" pad uid count32 size byte*</td>       <td>Array of booleans (0 for false and 1 for true). The <i>byte*</i> must be padded with zeros to align to 4 bytes</td></tr>
+        <tr><td>               |    "\x88" pad uid count32 size int32*</td>       <td>Array of 32-bit integers.</td></tr>
+        <tr><td>               |    "\x89" pad uid count32 size uint32*</td>       <td>Array of 32-bit unsigned integers.</td></tr>
+        <tr><td>               |    "\x8A" pad uid count32 size int64*</td>       <td>Array of 64-bit integers.</td></tr>
+        <tr><td>               |    "\x8B" pad uid count32 size uint64*</td>       <td>Array of 64-bit unsigned integers.</td></tr>
+        <tr><td>pad          ::=    uint8</td>                      <td>Padding Must be set to zero.</td></tr>
+        <tr><td>uid          ::=    uint16</td>                     <td>Unique field identifier.</td></tr>
+        <tr><td>string       ::=    size (uint8*)</td>              <td>UTF-8 string with <i>size</i> bytes. The <i>(uint8*)</i> is zero or more UTF-8 encoded characters, padded with zeros to align to 4 bytes.</td></tr>
+        <tr><td>binary       ::=    size (uint8*)</td>               <td>Generic binary data with <i>size</i> bytes. The <i>(uint8*)</i> must be padded with zeros to align to 4 bytes.</td></tr>
     </tbody>
 </table>
 
@@ -86,7 +91,7 @@
         <tr><th>Field type</th><th>Condition to ignore field</th></tr>
     </thead>
     <tbody>
-        <tr><td>document</td>     <td>Document has no fields or all of its fields were ignored.</td></tr>
+        <tr><td>document</td>     <td>Document has no fields or all fields were ignored.</td></tr>
         <tr><td>array</td>     <td>Number of elements in the array is zero.</td></tr>
         <tr><td>binary</td>     <td>Binary data is empty (i.e. size is zero).</td></tr>
     </tbody>
@@ -96,7 +101,25 @@
 
 <h2>Examples</h2>
 
-
-
+<table class='example'>
+    <tbody>
+        <tr>
+            <td>@255{ 1 : true, 2 : 5.5, 3 : 1251485695 }</td>
+            <td><span class='red'>40 00 00 00</span> <span class='blue'>03 00</span> <span class='purple'>FF 00</span>             // document, <span class='red'>size</span> = 28, <span class='blue'>field count</span> = 3, <span class='purple'>document UID</span> = 255
+<span class='red'>07</span> <span class='purple'>01</span> <span class='blue'>01 00</span>                         // field, <span class='red'>type</span> = boolean, <span class='blue'>UID</span> = 1, <span class='purple'>value</span> = true
+<span class='red'>04</span> 00 <span class='blue'>02 00</span> <span class='purple'>00 00 B0 40</span>             // field, <span class='red'>type</span> = float, <span class='blue'>UID</span> = 2, <span class='purple'>value</span> = 5.5
+<span class='red'>0B</span> 00 <span class='blue'>03 00</span> <span class='purple'>FF 27 98 4A 00 00 00 00</span> // field, <span class='red'>type</span> = uint64, <span class='blue'>UID</span> = 3, <span class='purple'>value</span> 1251485695</td>
+        </tr>
+        <tr>
+            <td>@255{ 1 : true, 2 : 5.5, 3 : 1251485695 }</td>
+            <td>3C 00 00 00 00 00 64 00
+06 00 01 00 12 00 00 00 45 78 61 6D 70 6C 65 20 6F 66 20 73 74 72 69 6E 67 00 00 00
+01 00 02 00
+        18 00 00 00 00 00 32 00
+        09 00 03 00 10 27 00 00
+        05 00 04 00 71 3D 0A D7 A3 00 59 40</td>
+        </tr>
+    </tbody>
+</table>
 </body>
 </html>
