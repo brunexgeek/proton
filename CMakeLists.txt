@@ -41,4 +41,8 @@ add_subdirectory(3rd-party/protop)
 add_executable(neutron
     "source/neutron.cc"
     "source/main.cc")
-#target_link_libraries(neutron libprotop)
+
+add_executable(proton
+    "source/neutron.cc"
+    "source/generator.cc")
+target_link_libraries(proton libprotop)

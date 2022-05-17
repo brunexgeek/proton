@@ -13,7 +13,7 @@ static void hexdump( const MemoryStream &value )
     {
         int w = 0;
         auto c = std::min((size_t)LINE, t - i);
-        for (int j = 0; j < c; ++j)
+        for (size_t j = 0; j < c; ++j)
         {
             if (j > 0 && (j % 4) == 0)
             {
@@ -25,7 +25,7 @@ static void hexdump( const MemoryStream &value )
         }
         while (w++ < CHARS) putchar(' ');
 
-        for (int j = 0; j < c; ++j)
+        for (size_t j = 0; j < c; ++j)
         {
             auto d = (int) p[i + j];
             if (d > 32 && d < 127)

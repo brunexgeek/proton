@@ -6,6 +6,7 @@
 #include <string>
 #include <list>
 #include <cstring>
+#include <stdexcept>
 
 namespace proton {
 namespace neutron {
@@ -16,16 +17,32 @@ class MemoryStream
         uint8_t *data_;
         size_t size_, off_;
 
+        MemoryStream() : data_(nullptr), size_(0), off_(0)
+        {
+        }
+
         MemoryStream( size_t size ) : off_(0)
         {
             size_ = size & 0xFFFFFFFF;
-            data_ = (uint8_t*) malloc(size_); // TODO: error handling
+            data_ = (uint8_t*) malloc(size_);
+            if (data_ == nullptr) throw std::bad_alloc();
         }
+
+        MemoryStream( const MemoryStream& ) = delete;
+
+        MemoryStream( MemoryStream &&that ) : data_(that.data_), size_(that.size_), off_(that.off_)
+        {
+            that.data_ = nullptr;
+            that.size_ = that.off_ = 0;
+        }
+
+        MemoryStream &operator=( const MemoryStream & ) = delete;
 
         inline void write( const uint8_t *buffer, size_t size )
         {
+            if (off_ + size > UINT32_MAX) throw std::out_of_range("Cannot write more then UINT_MAX bytes");
             if (off_ + size > size_) grow(size);
-            memcpy(data_ + off_, buffer, size); // TODO: error handling
+            memcpy(data_ + off_, buffer, size);
             off_ += size;
         }
 
@@ -147,7 +164,6 @@ class Serializer
             auto *pcount = (uint16_t*)(out_.data_ + item.offset + sizeof(uint32_t));
             *psize = (uint32_t) (out_.offset() - item.offset - sizeof(uint32_t));
             *pcount = (uint16_t) item.counter;
-            // TODO: update 'size' and 'count16'
         }
 
         inline void begin_document_single( uint16_t fid, uint16_t did )
@@ -156,7 +172,7 @@ class Serializer
             out_.write_uint8('\x01'); // type
             out_.write_uint8(0); // pad
             out_.write_uint16(fid); // uid
-            begin_document_value(did); // should call 'end_document' to finish
+            begin_document_value(did);
         }
 
         inline void end_document_single()
@@ -299,7 +315,7 @@ class Serializer
             end_array();
         }
 
-        inline void begin_binary_array( uint16_t id, const std::list<std::string> &value )
+        inline void begin_binary_array( uint16_t id )
         {
             begin_array('\x82', id);
         }
@@ -422,10 +438,12 @@ class Serializer
 
         inline void string_value( const std::string &value )
         {
-            auto size = (uint32_t) ((value.length() + 1 + 3) & (~3)); // TODO: check size
+            auto len = (uint32_t) value.length();
+            if (len == UINT32_MAX) --len;
+            auto size = (uint32_t) ((len + 1 + 3) & (~3));
             out_.write_int32(size);
-            out_.write(value.c_str(), value.length());
-            out_.padding(size - (uint32_t) value.length());
+            out_.write(value.c_str(), len);
+            out_.padding(size - len);
         }
 
     protected:
