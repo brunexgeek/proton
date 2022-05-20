@@ -2,7 +2,7 @@ project(proton)
 
 cmake_minimum_required(VERSION 3.10)
 
-set(PROTON_MAJOR_VERSION 3)
+set(PROTON_MAJOR_VERSION 1)
 set(PROTON_MINOR_VERSION 0)
 set(PROTON_PATCH_VERSION 0)
 
@@ -36,6 +36,7 @@ if (UNIX)
     endif()
 endif()
 
+configure_file("source/cmake.h.in" "__include/cmake.h")
 add_subdirectory(3rd-party/protop)
 
 add_executable(neutron
@@ -45,4 +46,14 @@ add_executable(neutron
 add_executable(proton
     "source/neutron.cc"
     "source/generator.cc")
+target_include_directories(proton
+    PRIVATE "${CMAKE_BINARY_DIR}/__include")
 target_link_libraries(proton libprotop)
+add_dependencies(proton process_neutron_hh)
+
+add_executable(template "source/template.cc")
+
+add_custom_target(process_neutron_hh
+    ${CMAKE_BINARY_DIR}/template ${CMAKE_SOURCE_DIR}/source/neutron.hh ${CMAKE_BINARY_DIR}/neutron.hh.gen
+    DEPENDS template
+)

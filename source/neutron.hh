@@ -14,15 +14,13 @@ namespace neutron {
 class MemoryStream
 {
     public:
-        uint8_t *data_;
-        size_t size_, off_;
-
         MemoryStream() : data_(nullptr), size_(0), off_(0)
         {
         }
 
         MemoryStream( size_t size ) : off_(0)
         {
+            if (size > UINT32_MAX) throw std::invalid_argument("Cannot allocate more then UINT_MAX bytes");
             size_ = size & 0xFFFFFFFF;
             data_ = (uint8_t*) malloc(size_);
             if (data_ == nullptr) throw std::bad_alloc();
@@ -38,9 +36,71 @@ class MemoryStream
 
         MemoryStream &operator=( const MemoryStream & ) = delete;
 
+        inline void read( uint8_t *buffer, size_t size )
+        {
+            if (off_ + size > size_) throw std::out_of_range("Cannot read the request amount of bytes");
+            memcpy(buffer, data_ + off_, size);
+            off_ += size;
+        }
+
+        inline void read( char *buffer, size_t size )
+        {
+            read((uint8_t*) buffer, size);
+        }
+
+        inline void read_int8( int8_t value )
+        {
+            read((uint8_t*) &value, sizeof(value));
+        }
+
+        inline void read_uint8( uint8_t value )
+        {
+            read((uint8_t*) &value, sizeof(value));
+        }
+
+        inline void read_int16( int16_t value )
+        {
+            read((uint8_t*) &value, sizeof(value));
+        }
+
+        inline void read_uint16( uint16_t value )
+        {
+            read((uint8_t*) &value, sizeof(value));
+        }
+
+        inline void read_int32( int32_t value )
+        {
+            read((uint8_t*) &value, sizeof(value));
+        }
+
+        inline void read_uint32( uint32_t value )
+        {
+            read((uint8_t*) &value, sizeof(value));
+        }
+
+        inline void read_int64( int64_t value )
+        {
+            read((uint8_t*) &value, sizeof(value));
+        }
+
+        inline void read_uint64( uint64_t value )
+        {
+            read((uint8_t*) &value, sizeof(value));
+        }
+
+        inline void read_float( float value )
+        {
+            read((uint8_t*) &value, sizeof(value));
+        }
+
+        inline void read_double( double value )
+        {
+            read((uint8_t*) &value, sizeof(value));
+        }
+
         inline void write( const uint8_t *buffer, size_t size )
         {
-            if (off_ + size > UINT32_MAX) throw std::out_of_range("Cannot write more then UINT_MAX bytes");
+            if (off_ + size > UINT32_MAX) throw std::out_of_range("Cannot allocate more then UINT_MAX bytes");
             if (off_ + size > size_) grow(size);
             memcpy(data_ + off_, buffer, size);
             off_ += size;
@@ -123,10 +183,13 @@ class MemoryStream
             while (count--) write_uint8(0);
         }
 
-        inline const uint8_t *data() const
-        {
-            return data_;
-        }
+        inline uint8_t *data() { return data_; }
+        inline const uint8_t *data() const { return data_; }
+        inline size_t size() { return size_; }
+
+    protected:
+        uint8_t *data_;
+        size_t size_, off_;
 };
 
 class Serializer
@@ -138,9 +201,9 @@ class Serializer
         // array  = document field with array of values
         // value  = standalone value for arrays
 
-        inline void begin_root_document( uint16_t id )
+        inline void begin_root_document()
         {
-            begin_document_value(id);
+            begin_document_value();
         }
 
         inline void end_root_document()
@@ -148,31 +211,31 @@ class Serializer
             end_document_value();
         }
 
-        inline void begin_document_value( uint16_t id )
+        inline void begin_document_value()
         {
             dstack_.push_back({(uint32_t)out_.offset(),0});
             out_.write_uint32(0U); // size
             out_.write_uint16((uint16_t)0); // count16
-            out_.write_uint16(id); // uid
+            out_.write_uint16(0); // pad*2
         }
 
         inline void end_document_value()
         {
             auto item = dstack_.back();
             dstack_.pop_back();
-            auto *psize = (uint32_t*)(out_.data_ + item.offset);
-            auto *pcount = (uint16_t*)(out_.data_ + item.offset + sizeof(uint32_t));
+            auto *psize = (uint32_t*)(out_.data() + item.offset);
+            auto *pcount = (uint16_t*)(out_.data() + item.offset + sizeof(uint32_t));
             *psize = (uint32_t) (out_.offset() - item.offset - sizeof(uint32_t));
             *pcount = (uint16_t) item.counter;
         }
 
-        inline void begin_document_single( uint16_t fid, uint16_t did )
+        inline void begin_document_single( uint16_t fid )
         {
             dstack_.back().counter++;
             out_.write_uint8('\x01'); // type
             out_.write_uint8(0); // pad
             out_.write_uint16(fid); // uid
-            begin_document_value(did);
+            begin_document_value();
         }
 
         inline void end_document_single()
@@ -471,12 +534,20 @@ class Serializer
         {
             auto item = astack_.back();
             astack_.pop_back();
-            auto *ptr = (uint32_t*)(out_.data_ + item.offset);
+            auto *ptr = (uint32_t*)(out_.data() + item.offset);
             *ptr = (uint32_t) (out_.offset() - item.offset - sizeof(uint32_t));
             *(ptr + sizeof(uint32_t)) = item.counter;
         }
 };
 
+class Deserialize
+{
+    public:
+        Deserialize( MemoryStream &ms ) : in_(ms) {}
+
+    protected:
+        MemoryStream &in_;
+};
 
 } // neutron
 } // proton
