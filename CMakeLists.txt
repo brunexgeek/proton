@@ -52,8 +52,10 @@ target_link_libraries(proton libprotop)
 add_dependencies(proton process_neutron_hh)
 
 add_executable(template "source/template.cc")
+target_include_directories(template
+    PRIVATE "${CMAKE_BINARY_DIR}/__include")
 
 add_custom_target(process_neutron_hh
-    ${CMAKE_BINARY_DIR}/template ${CMAKE_SOURCE_DIR}/source/neutron.hh ${CMAKE_BINARY_DIR}/neutron.hh.gen
+    ${CMAKE_BINARY_DIR}/template ${CMAKE_SOURCE_DIR}/source/proton.hh ${CMAKE_BINARY_DIR}/__include/proton.hh.cc
     DEPENDS template
 )

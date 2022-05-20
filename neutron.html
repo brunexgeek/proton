@@ -13,8 +13,8 @@
 <h1>Neutron Specification v1.0</h1>
 
 <p>Neutron is a binary serialization format to represent complex and nested entities. The top level entity is a document, an entity composed by zero or more key-value pairs.</p>
-<p>The format is designed so that data is encoded in a similar way as it is in memory for little-endian processors. Thus, minimal processing is required to encode and decode the data. This also enables the use of some zero copying techniques.</p>
-<p>The following grammar specifies version 1.1 of the Neutron standard. The grammar is written using a pseudo-BNF syntax. Valid Neutron data is represented by the document non-terminal.</p>
+<p>The format is designed so that data is encoded in a similar way as it is in memory for little-endian processors. Thus, minimal processing is required to encode and decode the data. This also enables the use of some zero copying techniques. In serialized form, values of 8, 16 and 32 bits are guaranteed to be aligned.</p>
+<p>The following grammar specifies version 1.0 of the standard. The grammar is written using a pseudo-BNF syntax. Valid Neutron data is represented by the <i>document</i> non-terminal.</p>
 
 <h2>Basic Types</h2>
 
@@ -55,14 +55,14 @@
         <tr><td>               |    "\x05" pad uid double</td>      <td>IEEE 754 64-bit floating point.</td></tr>
         <tr><td>               |    "\x06" pad uid string</td>      <td>UTF-8 string.</td></tr>
         <tr><td>               |    "\x07" uint8 uid</td>           <td>Boolean. The <i>uint8</i> must be set to 0 for false and 1 for true.</td></tr>
-        <tr><td>               |    "\x08" pad uid int32</td>       <td>32-bit integer.</td></tr>
+        <tr><td>               |    "\x08" pad uid int32</td>       <td>32-bit signed integer.</td></tr>
         <tr><td>               |    "\x09" pad uid uint32</td>      <td>32-bit unsigned integer.</td></tr>
-        <tr><td>               |    "\x0A" pad uid int64</td>       <td>64-bit integer.</td></tr>
+        <tr><td>               |    "\x0A" pad uid int64</td>       <td>64-bit signed integer.</td></tr>
         <tr><td>               |    "\x0B" pad uid uint64</td>      <td>64-bit unsigned integer.</td></tr>
-        <tr><td>               |    "\x48" int8  uid</td>           <td>32-bit integer encoding for small values (stored in <i>int8</i>).</td></tr>
-        <tr><td>               |    "\x49" uint8 uid</td>           <td>32-bit unsigned encoding integer for small values (stored in <i>uint8</i>).</td></tr>
-        <tr><td>               |    "\x4A" int8  uid</td>           <td>64-bit integer encoding for small values (stored in <i>int8</i>).</td></tr>
-        <tr><td>               |    "\x4B" uint8 uid</td>           <td>64-bit unsigned encoding integer for small values (stored in <i>uint8</i>).</td></tr>
+        <tr><td>               |    "\x48" int8  uid</td>           <td>Compact encoding for small 32-bit signed integer (stored in <i>int8</i>).</td></tr>
+        <tr><td>               |    "\x49" uint8 uid</td>           <td>Compact encoding for small 32-bit unsigned integer (stored in <i>uint8</i>).</td></tr>
+        <tr><td>               |    "\x4A" int8  uid</td>           <td>Compact encoding for small 64-bit signed integer (stored in <i>int8</i>).</td></tr>
+        <tr><td>               |    "\x4B" uint8 uid</td>           <td>Compact encoding for small 64-bit unsigned integer (stored in <i>uint8</i>).</td></tr>
         <tr><td> array_field ::=</td>       <td>Fields for array of values. The array content (i.e. the repeated non-terminal) has <i>count32</i> elements (up to 2<sup>32</sup>). The entire array (including <i>count32</i> occupies <i>size</i> bytes.</td></tr>
         <tr><td>               |    "\x81" pad uid size count32 document*</td>       <td>Array of documents.</td></tr>
         <tr><td>               |    "\x82" pad uid size count32 binary*</td>       <td>Array of binary data.</td></tr>

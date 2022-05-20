@@ -33,6 +33,9 @@ static const char *TYPES[] =
     nullptr,
 };
 
+//extern const char *content_proton_hh;
+#include <proton.hh.cc>
+
 static std::vector<std::string> split_package( const std::string &package )
 {
     std::vector<std::string> out;
@@ -128,11 +131,6 @@ static void print( Context &ctx, std::shared_ptr<Enum> entity )
     out << '}' << '\n';
 }*/
 
-static void print_forward( Context &ctx, std::shared_ptr<Message> message )
-{
-    ctx.header << "class " << message->name << ";\n";
-}
-
 static void generate_operators( Context &ctx, std::shared_ptr<Message> message )
 {
     // not equal
@@ -150,7 +148,7 @@ static void generate_operators( Context &ctx, std::shared_ptr<Message> message )
 
 static void generate_message_decl( Context &ctx, std::shared_ptr<Message> message )
 {
-    ctx.header << "struct " << message->name << "\n{" << '\n';
+    ctx.header << "struct " << message->name << " : public ::" << PROTON_NAMESPACE << "::Document\n{" << '\n';
 
     // fields
     for (auto it : message->fields) generate_field(ctx, it);
@@ -161,8 +159,8 @@ static void generate_message_decl( Context &ctx, std::shared_ptr<Message> messag
     ctx.header << "\tbool operator!=( const " << message->name << "& ) const;\n";
     ctx.header << "\tbool operator==( const " << message->name << "& ) const;\n";
     ctx.header << "\t" << message->name << " &operator=( const " << message->name << "& ) = default;\n";
-    ctx.header << "\t::" PROTON_NAMESPACE "::MemoryStream serialize();\n";
-    ctx.header << "\tvoid deserialize( ::" PROTON_NAMESPACE "::MemoryStream & );\n";
+    ctx.header << "\t::" NEUTRON_NAMESPACE "::MemoryStream serialize();\n";
+    ctx.header << "\tvoid deserialize( ::" NEUTRON_NAMESPACE "::MemoryStream & );\n";
 
     ctx.header << "};" << '\n';
 }
@@ -197,22 +195,12 @@ static void generate_header( Context &ctx, Proto &proto )
     ctx.header << "#include <list>\n";
     ctx.header << "#include <memory>\n";
 
+    ctx.header << content_proton_hh;
+
     ctx.nspace = split_package(proto.package);
-#if 0
-    // begin GRPC namespace
-    for (auto item : ctx.nspace)
-        ctx.header << "namespace " << item << "{\n";
-    // forward declarations
-    for (auto it : proto.messages) print_forward(ctx, it);
-    // end GRPC namespace
-    for (auto item : ctx.nspace)
-        ctx.header << "} // namespace " << item << "\n";
-#endif
     // begin prettify namespace
     for (auto item : ctx.nspace)
         ctx.header << "namespace " << item << "{\n";
-    // forward declarations
-    for (auto it : proto.messages) print_forward(ctx, it);
     // messages
     for (auto it : proto.messages) generate_message_decl(ctx, it);
     // end prettify namespace

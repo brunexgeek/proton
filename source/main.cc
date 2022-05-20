@@ -1,7 +1,7 @@
 #include "neutron.hh"
 #include <algorithm>
 
-using namespace proton::neutron;
+using namespace neutron_X_X_X;
 
 static void hexdump( const MemoryStream &value )
 {
@@ -45,7 +45,7 @@ int main( int argc, char ** argv )
     {
         MemoryStream ms(256);
         Serializer serial(ms);
-        serial.begin_root_document(255);
+        serial.begin_root_document();
         serial.bool_single(1, true);
         serial.float_single(2, 5.5);
         serial.uint64_single(3, 1251485695U);
@@ -56,9 +56,9 @@ int main( int argc, char ** argv )
     {
         MemoryStream ms(256);
         Serializer serial(ms);
-        serial.begin_root_document(100);
+        serial.begin_root_document();
         serial.string_single(1, "Example of string");
-        serial.begin_document_single(2, 50);
+        serial.begin_document_single(2);
         serial.uint32_single(3, 100);
         serial.double_single(4, 100.01);
         serial.end_document_single();
@@ -69,17 +69,17 @@ int main( int argc, char ** argv )
     {
         MemoryStream ms(256);
         Serializer serial(ms);
-        serial.begin_root_document(147);
+        serial.begin_root_document();
         const bool values[] = {true, false, true};
         serial.bool_array(1, values, 3);
         serial.begin_document_array(2);
-        serial.begin_document_value(22);
+        serial.begin_document_value();
         serial.begin_string_array(1);
         serial.string_value("Test value");
         serial.string_value("Another one");
         serial.end_string_array();
         serial.end_document_value();
-        serial.begin_document_value(23);
+        serial.begin_document_value();
         serial.uint32_single(3, 100);
         serial.end_document_value();
         serial.end_document_array();

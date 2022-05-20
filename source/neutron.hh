@@ -1,5 +1,5 @@
-#ifndef NEUTRON_API
-#define NEUTRON_API
+#ifndef NEUTRON_X_X_X__API
+#define NEUTRON_X_X_X__API
 
 #include <cstddef>
 #include <cstdint>
@@ -8,8 +8,7 @@
 #include <cstring>
 #include <stdexcept>
 
-namespace proton {
-namespace neutron {
+namespace neutron_X_X_X {
 
 class MemoryStream
 {
@@ -549,7 +548,6 @@ class Deserialize
         MemoryStream &in_;
 };
 
-} // neutron
-} // proton
+} // neutron_X_X_X
 
-#endif // NEUTRON_API
+#endif // NEUTRON_X_X_X__API
