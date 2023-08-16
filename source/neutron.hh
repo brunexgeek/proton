@@ -47,52 +47,52 @@ class MemoryStream
             read((uint8_t*) buffer, size);
         }
 
-        inline void read_int8( int8_t value )
+        inline void read_int8( int8_t &value )
         {
             read((uint8_t*) &value, sizeof(value));
         }
 
-        inline void read_uint8( uint8_t value )
+        inline void read_uint8( uint8_t &value )
         {
             read((uint8_t*) &value, sizeof(value));
         }
 
-        inline void read_int16( int16_t value )
+        inline void read_int16( int16_t &value )
         {
             read((uint8_t*) &value, sizeof(value));
         }
 
-        inline void read_uint16( uint16_t value )
+        inline void read_uint16( uint16_t &value )
         {
             read((uint8_t*) &value, sizeof(value));
         }
 
-        inline void read_int32( int32_t value )
+        inline void read_int32( int32_t &value )
         {
             read((uint8_t*) &value, sizeof(value));
         }
 
-        inline void read_uint32( uint32_t value )
+        inline void read_uint32( uint32_t &value )
         {
             read((uint8_t*) &value, sizeof(value));
         }
 
-        inline void read_int64( int64_t value )
+        inline void read_int64( int64_t &value )
         {
             read((uint8_t*) &value, sizeof(value));
         }
 
-        inline void read_uint64( uint64_t value )
+        inline void read_uint64( uint64_t &value )
         {
             read((uint8_t*) &value, sizeof(value));
         }
 
-        inline void read_float( float value )
+        inline void read_float( float &value )
         {
             read((uint8_t*) &value, sizeof(value));
         }
 
-        inline void read_double( double value )
+        inline void read_double( double &value )
         {
             read((uint8_t*) &value, sizeof(value));
         }

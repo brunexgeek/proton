@@ -43,8 +43,8 @@
 
 <table class='abnf'>
     <tbody>
-        <tr><td>document     ::=    size count16 pad*2 (field*)</td> <td>Document with <i>count16</i> fields (up to 2<sup>16</sup>). The entire document occupies <i>size</i> bytes (except the <i>size</i> itself).</td></tr>
-        <tr><td>field        ::=</td>                               <td>Document field. A document cannot have multiple fields with the same identifier. Fields are serialized in the same order they are specified in the document layout.</td></tr>
+        <tr><td>document     ::=    size count16 pad*2 (field*)</td> <td>Document with <i>count16</i> fields (up to 65504). The entire document occupies <i>size</i> bytes (except the <i>size</i> itself).</td></tr>
+        <tr><td>field        ::=</td>                               <td>Document field. A document cannot have multiple fields with the same identifier. Fields are serialized in ascending order by identifier.</td></tr>
         <tr><td>               |    simple_field</td>               <td></td></tr>
         <tr><td>               |    array_field</td>                <td></td></tr>
         <tr><td>simple_field ::=</td>    <td>Fields with a single value.</td></tr>
@@ -64,20 +64,20 @@
         <tr><td>               |    "\x4A" int8  uid</td>           <td>Compact encoding for small 64-bit signed integer (stored in <i>int8</i>).</td></tr>
         <tr><td>               |    "\x4B" uint8 uid</td>           <td>Compact encoding for small 64-bit unsigned integer (stored in <i>uint8</i>).</td></tr>
         <tr><td> array_field ::=</td>       <td>Fields for array of values. The array content (i.e. the repeated non-terminal) has <i>count32</i> elements (up to 2<sup>32</sup>). The entire array (including <i>count32</i> occupies <i>size</i> bytes.</td></tr>
-        <tr><td>               |    "\x81" pad uid size count32 document*</td>       <td>Array of documents.</td></tr>
-        <tr><td>               |    "\x82" pad uid size count32 binary*</td>       <td>Array of binary data.</td></tr>
-        <tr><td>               |    "\x83" pad uid size count32 uint64*</td>       <td>Array of UTC datetime (milliseconds since the Unix epoch).</td></tr>
-        <tr><td>               |    "\x84" pad uid size count32 float*</td>       <td>Array of IEEE 754 32-bit floating points.</td></tr>
-        <tr><td>               |    "\x85" pad uid size count32 double*</td>       <td>Array of IEEE 754 64-bit floating points.</td></tr>
-        <tr><td>               |    "\x86" pad uid size count32 string*</td>       <td>Array of UTF-8 strings.</td></tr>
-        <tr><td>               |    "\x87" pad uid size count32 byte*</td>       <td>Array of booleans (0 for false and 1 for true). The <i>byte*</i> must be padded with zeros to align to 4 bytes</td></tr>
-        <tr><td>               |    "\x88" pad uid size count32 int32*</td>       <td>Array of 32-bit integers.</td></tr>
-        <tr><td>               |    "\x89" pad uid size count32 uint32*</td>       <td>Array of 32-bit unsigned integers.</td></tr>
-        <tr><td>               |    "\x8A" pad uid size count32 int64*</td>       <td>Array of 64-bit integers.</td></tr>
-        <tr><td>               |    "\x8B" pad uid size count32 uint64*</td>       <td>Array of 64-bit unsigned integers.</td></tr>
-        <tr><td> meta_field  ::=</td>       <td>Optional fields containing meta-information about the document.</td></tr>
-        <tr><td>               |    "\xFE" pad uid string</td>       <td>Field containing the document layout name.</td></tr>
-        <tr><td>               |    "\xFF" pad uid count32 size (uid string)*</td>       <td>Table containing field names. The table have <i>count32</i> elements and each element is a pair formed by the field <i>uid</i> and the corresponding <i>string</i>. If the table is present, it must have one element for each field present in the document. Ignored fields (see <a href='#optimization'>Optimization</a>) as optional.</td></tr>
+        <tr><td>               |    0x81 pad uid size count32 document*</td>       <td>Array of documents.</td></tr>
+        <tr><td>               |    0x82 pad uid size count32 binary*</td>       <td>Array of binary data.</td></tr>
+        <tr><td>               |    0x83 pad uid size count32 uint64*</td>       <td>Array of UTC datetime (milliseconds since the Unix epoch).</td></tr>
+        <tr><td>               |    0x84 pad uid size count32 float*</td>       <td>Array of IEEE 754 32-bit floating points.</td></tr>
+        <tr><td>               |    0x85 pad uid size count32 double*</td>       <td>Array of IEEE 754 64-bit floating points.</td></tr>
+        <tr><td>               |    0x86 pad uid size count32 string*</td>       <td>Array of UTF-8 strings.</td></tr>
+        <tr><td>               |    0x87 pad uid size count32 byte*</td>       <td>Array of booleans (0 for false and 1 for true). The <i>byte*</i> must be padded with zeros to align to 4 bytes</td></tr>
+        <tr><td>               |    0x88 pad uid size count32 int32*</td>       <td>Array of 32-bit integers.</td></tr>
+        <tr><td>               |    0x89 pad uid size count32 uint32*</td>       <td>Array of 32-bit unsigned integers.</td></tr>
+        <tr><td>               |    0x8A pad uid size count32 int64*</td>       <td>Array of 64-bit integers.</td></tr>
+        <tr><td>               |    0x8B pad uid size count32 uint64*</td>       <td>Array of 64-bit unsigned integers.</td></tr>
+        <tr><td> meta_field  ::=</td>       <td>Optional fields containing meta-information about the document. Unique identifiers from 0xFFE0 to 0xFFFF are reserverd for meta-information fields.</td></tr>
+        <tr><td>               |    0xFE pad 0xFF 0xFE string</td>       <td>Field containing the document layout name.</td></tr>
+        <tr><td>               |    0xFF pad 0xFF 0xFF count32 size (uid string)*</td>       <td>Table containing field names. The table have <i>count32</i> elements and each element is a pair formed by the field <i>uid</i> and the corresponding <i>string</i>. If the table is present, it must have one element for each field present in the document. Ignored fields (see <a href='#optimization'>Optimization</a>) as optional.</td></tr>
         <tr><td>string       ::=    size uint8*</td>              <td>UTF-8 string with <i>size</i> bytes. The <i>uint8*</i> is zero or more UTF-8 encoded characters, padded with zeros to align to 4 bytes.</td></tr>
         <tr><td>binary       ::=    size uint8*</td>               <td>Generic binary data with <i>size</i> bytes. The <i>uint8*</i> must be padded with zeros to align to 4 bytes.</td></tr>
         <tr><td>size         ::=    uint32</td>                     <td>Size in bytes. The maximum value is 2<sup>32</sup></td></tr>
